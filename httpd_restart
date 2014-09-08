@@ -1,0 +1,107 @@
+#!/usr/local/bin/python3
+import os
+import smtplib
+import string
+import subprocess
+from subprocess import call
+from subprocess import sys
+from time import sleep
+from datetime import datetime
+
+#Set variables
+domain = 'proface.eu'
+init_wait_time = 50
+init_wait_after_kill = 10
+init_wait_after_restart = 10
+init_poll_time = 5
+init_recheck_time = 900 #15 minuten wacht tijd voordat het restart script begint
+max_counter_restarts = 5
+
+#status = os.system("service httpd status")
+
+#retcode = subprocess.check_output(["service", "httpd", "status"])
+#print (retcode)
+
+def sendSysCommand(command):
+  try:
+    retcode = call(command, shell=True)
+    if retcode < 0:
+      print("Child was terminated by signal", -retcode, file=sys.stderr)
+    else:
+      print("Child returned", retcode, file=sys.stderr)
+      return retcode
+  except OSError as e:
+        print("Execution failed:", e, file=sys.stderr)
+  return False
+
+def mailReport(text):
+  #Bouw mail
+  SUBJECT = "Server httpd monitor Pro-face"
+  TO = "website@proface.eu"
+  FROM = "server@proface.eu"
+
+  BODY = "\r\n".join(
+        ["From: %s" % FROM,
+        "To: %s" % TO,
+        "Subject: %s" % SUBJECT ,
+        "",
+  "Pro-face actie (%s): \n\r%s" %(str(datetime.now()) ,text)
+        ])
+
+  HOST = 'localhost'
+  server = smtplib.SMTP(HOST)
+  server.sendmail(FROM, [TO], BODY)
+  server.quit()
+
+def getCommandLineOutput(command):
+  return subprocess.check_output([command], stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
+
+
+#Initial wait tima at stratup
+sleep(init_wait_time)
+mailReport('Httpd monitor servers has been started on %s'%domain)
+
+counter_restarts = 0
+do_recheck = False
+
+while (1==1):
+    try:
+        #Get status
+        httpdSt = sendSysCommand("service httpd status")
+        message = "Status before restart: %s"%httpdSt
+
+        if httpdSt != 0 and httpdSt != False and do_recheck == False:
+            #Wait for final check
+            sleep(init_recheck_time)
+            do_recheck = True
+        elif httpdSt != 0 and httpdSt != False:
+            counter_restarts +=1
+            mssg = sendSysCommand("killall httpd")
+            message += "\n\rKill httpd: %s"%mssg
+            sleep(init_wait_after_kill)
+            mssg = sendSysCommand("service httpd restart")
+            message += "\n\rRestart command: %s"%mssg
+            sleep(init_wait_after_restart)
+
+            mssg = getCommandLineOutput("service httpd status")
+            message += "\n\rNew httpd status after restart: %s"%mssg
+            mailReport(message)
+
+            print("Cycle counter: %s"%counter_restarts)
+
+    except:
+            print("Unexpected error:", sys.exc_info()[0])
+
+  print("Nr of restarts: %s"%counter_restarts)
+
+  if httpdSt == 0:
+    counter_restarts = 0
+        do_recheck = False
+    print(counter_restarts)
+
+  #Ga uit wanneer er teveel restarts zijn geweest
+  if counter_restarts > max_counter_restarts:
+    mailReport('Het maximal aantal httpd restarts pogingen (%i) is bereikt op %s, ik geef het op, httpd monitor script wordt gestopt en het httpd proces is getopt.' %(max_counter_restarts, domain))
+    break
+  #Wait for next cyclus
+  sleep(init_poll_time)
