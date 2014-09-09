@@ -35,9 +35,8 @@ def sendSysCommand(command):
 def mailReport(text):
   #Bouw mail
   SUBJECT = "Server httpd monitor Pro-face"
-  TO = "website@proface.eu"
-  FROM = "server@proface.eu"
-
+  TO = "website@server.eu"
+  FROM = "server@server.eu"
   BODY = "\r\n".join(
         ["From: %s" % FROM,
         "To: %s" % TO,
@@ -57,7 +56,7 @@ def getCommandLineOutput(command):
 
 #Initial wait tima at stratup
 sleep(init_wait_time)
-mailReport('Httpd monitor servers has been started on %s'%domain)
+mailReport('Httpd monitor service has been started on %s' % domain)
 
 counter_restarts = 0
 do_recheck = False
@@ -101,7 +100,7 @@ while (1==1):
     # Ga uit wanneer er teveel restarts zijn geweest
     if counter_restarts > max_counter_restarts:
       mailReport(
-        'Het maximal aantal httpd restarts pogingen (%i) is bereikt op %s, ik geef het op, httpd monitor script wordt gestopt en het httpd proces is getopt.' % (
+        'The maximum restart attempts (%i) have been reached %s, I give up, httpd process and httpd_monitoring process have stoped. Now It\'s your turn.' % (
           max_counter_restarts, domain))
       break
 
