@@ -1,7 +1,5 @@
 #!/usr/local/bin/python3
-import os
 import smtplib
-import string
 import subprocess
 from subprocess import call
 from subprocess import sys
@@ -63,6 +61,7 @@ mailReport('Httpd monitor servers has been started on %s'%domain)
 
 counter_restarts = 0
 do_recheck = False
+httpdSt = 0
 
 while (1==1):
     try:
@@ -90,19 +89,21 @@ while (1==1):
             print("Cycle counter: %s"%counter_restarts)
 
     except:
-            print("Unexpected error:", sys.exc_info()[0])
+      print("Unexpected error:", sys.exc_info()[0])
 
+    print("Nr of restarts: %s" % counter_restarts)
 
-  print("Nr of restarts: %s"%counter_restarts)
+    if httpdSt == 0:
+      counter_restarts = 0
+      do_recheck = False
+      print(counter_restarts)
 
-  if httpdSt == 0:
-    counter_restarts = 0
-        do_recheck = False
-    print(counter_restarts)
+    # Ga uit wanneer er teveel restarts zijn geweest
+    if counter_restarts > max_counter_restarts:
+      mailReport(
+        'Het maximal aantal httpd restarts pogingen (%i) is bereikt op %s, ik geef het op, httpd monitor script wordt gestopt en het httpd proces is getopt.' % (
+          max_counter_restarts, domain))
+      break
 
-  #Ga uit wanneer er teveel restarts zijn geweest
-  if counter_restarts > max_counter_restarts:
-    mailReport('Het maximal aantal httpd restarts pogingen (%i) is bereikt op %s, ik geef het op, httpd monitor script wordt gestopt en het httpd proces is getopt.' %(max_counter_restarts, domain))
-    break
-  #Wait for next cyclus
-  sleep(init_poll_time)
+    # Wait for next cyclus
+    sleep(init_poll_time)
